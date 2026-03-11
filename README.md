@@ -1,7 +1,12 @@
 <div align="center">
-  <img src="https://via.placeholder.com/150/09f/fff.png" height="100" />
   <h1>🚀 GetaText Automation Bot ✨</h1>
   <p><strong>Multi-threaded, stealthy, fingerprint-injected browser automation script.</strong></p>
+  
+  <p>
+    <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript" />
+    <img src="https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" />
+    <img src="https://img.shields.io/badge/Puppeteer-40B5A4?style=for-the-badge&logo=puppeteer&logoColor=white" alt="Puppeteer" />
+  </p>
 </div>
 
 ---
@@ -32,7 +37,7 @@
    ```
 
 3. **Configure your resources:**
-   - **Accounts:** Rename `accounts.example.json` to `accounts.json` and add your targets.
+   - **Accounts:** Rename `accounts.example.json` to `accounts.json` and add your targets. **Note: Change account status to `"queue"` (or `"error"`) to run them! Accounts left as `"done"` are skipped.**
    - **Proxies:** Add your proxies to `resources/proxies/proxies.txt` one per line (`http://user:pass@ip:port`).
    - **Fingerprints:** Drop your `.json` or `.tmp` spoofing payloads into `resources/fingerprints/`.
 
