@@ -23,8 +23,10 @@ const FINGERPRINTS_DIR = path.join(__dirname, "resources", "fingerprints");
 const SESSIONS_DIR = path.join(__dirname, "sessions");
 
 console.log(
-  gradient.pastel.multiline(
-    "=========================================\n🚀 GETATEXT AUTOMATION BOT INITIATED 🚀\n=========================================",
+  gradient.vice.multiline(
+    "╔════════════════════════════════════════════════════════════╗\n" +
+      "║     🚀 GETATEXT AUTOMATION BOT INITIATED - v1.0.1 🤖       ║\n" +
+      "╚════════════════════════════════════════════════════════════╝\n",
   ),
 );
 
@@ -70,7 +72,8 @@ function getLogPrefix(workerId) {
     chalk.white,
   ];
   const color = colors[workerId % colors.length];
-  return color.bold(`[🤖 W-${workerId}]`);
+  const time = new Date().toLocaleTimeString("en-US", { hour12: false });
+  return color.bold(`[${time}] [🤖 Worker-${workerId}]`);
 }
 
 async function runWorker(workerId, account, proxyUrl, fingerprintPath) {

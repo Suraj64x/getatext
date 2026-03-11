@@ -12,6 +12,9 @@
 ---
 
 ## 🌟 Features
+- **🔑 API Key Extraction:** Automatically navigates to the user profile and extracts the API Key natively after successful wallet verification.
+- **🧠 Smart Error Handling:** Automatically detects "email already used" warnings during registration and dynamically skips/logs the account without freezing.
+- **✨ Enhanced Logging:** Vivid time-stamped worker threads, dynamic UI indicators, and fresh terminal gradients.
 - **⚡ Multi-Threading:** Run multiple accounts seamlessly in parallel. You choose the thread count!
 - **🛡️ Ultimate Stealth:** Powered by `puppeteer-extra-plugin-stealth` to evade modern bot detection.
 - **🧬 Hardware Fingerprinting:** Deep Canvas, WebGL, GPU, and CPU spoofing dynamically injected per thread using `fingerprint-injector`.
