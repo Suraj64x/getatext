@@ -137,12 +137,10 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
     const pages = await browser.pages();
     const page = pages.length > 0 ? pages[0] : await browser.newPage();
 
-    // Close any previous or automatically restored background tabs to avoid memory leaks or duplicate executions
     for (let i = 1; i < pages.length; i++) {
       await pages[i].close().catch(() => {});
     }
 
-    // Bring the main tab forward
     await page.bringToFront();
 
     if (proxyAuth) await page.authenticate(proxyAuth);
@@ -152,7 +150,6 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
         const fpData = JSON.parse(fs.readFileSync(fingerprintPath, "utf-8"));
         const fingerprintContent = fpData.fingerprint || fpData;
 
-        // Force exactly the 16:9 or 16:10 resolutions on the fingerprint canvas
         if (fingerprintContent.screen) {
           fingerprintContent.screen.width = targetRes.w;
           fingerprintContent.screen.height = targetRes.h;
@@ -202,9 +199,7 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
     await page.click("#terms");
     await new Promise((r) => setTimeout(r, 3000));
 
-    // Scroll down to make sure the recaptcha/submit button is in view
     await page.evaluate(() => window.scrollBy(0, 400));
-    // Wait briefly after scroll
     await new Promise((r) => setTimeout(r, 1000));
 
     spinner.text = `${prefix} ${chalk.magenta("Clicking Submit/Register...")} 🚀`;
@@ -213,7 +208,6 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       timeout: 30000,
     });
 
-    // First, wait for the other page to load while clicking Register
     await Promise.all([
       page
         .waitForNavigation({ waitUntil: "networkidle2", timeout: 30000 })
@@ -222,10 +216,8 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
     ]);
 
     spinner.text = `${prefix} ${chalk.cyan("Scrolling to bottom for Accept All...")} 📜`;
-    // Wait for 3 seconds after the page loads
     await new Promise((r) => setTimeout(r, 3000));
 
-    // Scroll max to the bottom (or 40-50 lines roughly 2000 pixels)
     await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
       window.scrollBy(0, 2000);
@@ -242,12 +234,9 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       const acceptElements = await page.$$(acceptAllXpath);
       if (acceptElements.length > 0) {
         await page.evaluate((el) => el.click(), acceptElements[0]);
-        // And again wait for 3 seconds
         await new Promise((r) => setTimeout(r, 3000));
       }
-    } catch (e) {
-      // May not always appear or already accepted
-    }
+    } catch (e) {}
 
     spinner.text = `${prefix} ${chalk.cyan("Navigating to Wallet...")} 💼`;
     const walletXpath = "xpath/.//*[contains(text(), 'Wallet')]";
@@ -275,20 +264,17 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       timeout: 15000,
     });
 
-    // Explicitly click to focus before typing
     await page.click(promoTextareaSelector);
     await new Promise((r) => setTimeout(r, 500));
 
     await page.type(promoTextareaSelector, "WELCOMEDAISYUSERS", { delay: 50 });
 
-    // Click the REDEEM PROMOCODE button
     const applyXpath = "xpath/.//button[contains(., 'REDEEM PROMOCODE')]";
     const applyBtns = await page.$$(applyXpath);
     if (applyBtns.length > 0) {
       await page.evaluate((el) => el.click(), applyBtns[0]);
       await new Promise((r) => setTimeout(r, 3000));
     } else {
-      // Fallback selector if XPath fails
       const fallbackBtn = await page.$$('button.btn-full-width[type="submit"]');
       if (fallbackBtn.length > 0) {
         await page.evaluate((el) => el.click(), fallbackBtn[0]);
@@ -321,7 +307,6 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       );
       account.status = "done";
 
-      // Save exclusively to successAccounts.json
       try {
         const successFile = path.join(__dirname, "successAccounts.json");
         let successAccs = [];
@@ -333,18 +318,15 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
           successAccs.push(account);
           fs.writeFileSync(successFile, JSON.stringify(successAccs, null, 2));
         }
-      } catch (e) {
-        // Fallback catch for file write
-      }
+      } catch (e) {}
 
-      if (browser) await browser.close(); // Automatically close precisely on success
+      if (browser) await browser.close();
     } else {
       throw new Error("Balance did not reach $0.50 timeout reached.");
     }
   } catch (err) {
     spinner.fail(`${prefix} ${chalk.red.bold("Error!")} 💥 ${err.message}`);
 
-    // Check if it's a proxy or network timeout issue to retry
     if (
       err.message.includes("ERR_TIMED_OUT") ||
       err.message.includes("Timeout") ||

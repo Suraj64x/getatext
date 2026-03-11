@@ -52,5 +52,5 @@ The console will dynamically prompt you for the desired thread count!
 
 ---
 <div align="center">
-  <i>Developed with ❤️ for seamless web automation.</i>
+  <i>Developed by SMOKiE with ❤️ for seamless web automation.</i>
 </div>
