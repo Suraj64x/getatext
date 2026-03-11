@@ -214,6 +214,19 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       clickSubmit(),
     ]);
 
+    const emailTaken = await page.evaluate(() => {
+      return document.body.innerText.includes(
+        "The email has already been taken.",
+      );
+    });
+
+    if (emailTaken) {
+      spinner.fail(`${prefix} ${chalk.red.bold("Email already used!")}`);
+      account.status = "emailalreadyused";
+      if (browser) await browser.close();
+      return;
+    }
+
     spinner.text = `${prefix} ${chalk.cyan("Scrolling to bottom for Accept All...")} 📜`;
     await new Promise((r) => setTimeout(r, 3000));
 
