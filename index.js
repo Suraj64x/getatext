@@ -166,19 +166,10 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
     }
 
     spinner.text = `${prefix} ${chalk.cyan("Navigating to target...")} 🛸`;
-    await page.goto(TARGET_URL, {
+    await page.goto("https://getatext.com/register", {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
-
-    spinner.text = `${prefix} ${chalk.cyan("Waiting for Register button...")} ⏳`;
-    await page.waitForSelector('a[href="https://getatext.com/register"]', {
-      visible: true,
-      timeout: 30000,
-    });
-
-    spinner.text = `${prefix} ${chalk.cyan("Clicking 'Register' button...")} 🖱️`;
-    await page.click('a[href="https://getatext.com/register"]');
     await new Promise((r) => setTimeout(r, 3000));
 
     spinner.text = `${prefix} ${chalk.yellow("Typing credentials...")} ⌨️`;
@@ -203,16 +194,24 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
     await new Promise((r) => setTimeout(r, 1000));
 
     spinner.text = `${prefix} ${chalk.magenta("Clicking Submit/Register...")} 🚀`;
-    await page.waitForSelector('button[type="submit"].btn-login', {
+    const submitBtnSelector = 'button[type="submit"]';
+    await page.waitForSelector(submitBtnSelector, {
       visible: true,
       timeout: 30000,
     });
 
+    const clickSubmit = async () => {
+      const btns = await page.$$(submitBtnSelector);
+      if (btns.length > 0) {
+        await page.evaluate((el) => el.click(), btns[0]);
+      }
+    };
+
     await Promise.all([
       page
         .waitForNavigation({ waitUntil: "networkidle2", timeout: 30000 })
-        .catch(() => {}), // catch if navigation doesn't perfectly trigger
-      page.click('button[type="submit"].btn-login'),
+        .catch(() => {}),
+      clickSubmit(),
     ]);
 
     spinner.text = `${prefix} ${chalk.cyan("Scrolling to bottom for Accept All...")} 📜`;
@@ -302,10 +301,32 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
     }
 
     if (balanceFound) {
+      spinner.text = `${prefix} ${chalk.cyan("Fetching API Key from profile...")} 🔑`;
+      await page.goto("https://getatext.com/profile", {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+      await new Promise((r) => setTimeout(r, 3000));
+
+      let apiKey = "";
+      try {
+        await page.waitForSelector("#apiKeyDisplay", {
+          visible: true,
+          timeout: 15000,
+        });
+        apiKey = await page.evaluate(() => {
+          const el = document.getElementById("apiKeyDisplay");
+          return el ? el.innerText.trim() : "";
+        });
+      } catch (e) {
+        // Fallback if selector is not found
+      }
+
       spinner.succeed(
-        `${prefix} ${chalk.green.bold("Success!")} 🎉 Account ${chalk.underline(account.email)} balance is $0.50. Marked done.`,
+        `${prefix} ${chalk.green.bold("Success!")} 🎉 Account ${chalk.underline(account.email)} balance is $0.50. API Key: ${apiKey || "N/A"}`,
       );
       account.status = "done";
+      if (apiKey) account.apikey = apiKey;
 
       try {
         const successFile = path.join(__dirname, "successAccounts.json");
@@ -385,7 +406,9 @@ async function main() {
 
   while (true) {
     let accounts = readAccounts();
-    const queuedAccounts = accounts.filter((a) => a.status === "queue");
+    const queuedAccounts = accounts.filter(
+      (a) => a.status === "queue" || a.status === "error",
+    );
 
     if (queuedAccounts.length === 0 && activeQueueTasks.size === 0) {
       console.log(
