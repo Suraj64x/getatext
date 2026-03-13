@@ -1,0 +1,8 @@
+[
+  {
+    "number": 1,
+    "email": "example@example.com",
+    "password": "pass123",
+    "status": "queue"
+  }
+]
