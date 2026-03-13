@@ -23,8 +23,7 @@
 - 🧹 **Auto Tab Closing** - Keeps focus on target site
 - ⚡ **50+ Thread Support** - Fully optimized
 - ⚠️ **Bad Proxy Detection** - Saves failures to `output/badproxies.txt`
-- 📥 **launch.bat** - One-click Windows launcher
-- 🔍 **Proxy Validation Toggle** - Choose [y/n] to validate proxies or skip
+-  **Proxy Validation Toggle** - Choose [y/n] to validate proxies or skip
 - 📝 **Visible Terminal Input** - Characters now show while typing (prompt-sync)
 - 🔧 **Interactive Menu** - Choose [1] Run Bot or [2] Extract API Keys
 
@@ -78,14 +77,6 @@
 
 ## 🚀 Quick Start
 
-### Option 1: Windows Batch File (Easiest) ⭐
-```bash
-# Simply double-click: launch.bat
-# Or run from PowerShell:
-.\launch.bat
-```
-
-### Option 2: Command Line
 ```bash
 npm install          # Install dependencies (first time only)
 node index.js        # Launch the bot
@@ -168,7 +159,6 @@ node index.js        # Launch the bot
 
 ```
 getatext-main/
-├── launch.bat                           # ⭐ Windows quick-launcher
 ├── index.js                             # Main bot code
 ├── package.json                         # Dependencies
 ├── README.md                            # Documentation
@@ -196,7 +186,7 @@ getatext-main/
 
 ### Example 1: Quick Test (Default Settings)
 ```bash
-# Run: node index.js OR launch.bat
+# Run: node index.js
 
 Choose mode? [1 or 2]: 1
 Threads? [3]: (Enter)
@@ -422,7 +412,6 @@ http://bad2.com:8080 [2026-03-11T14:26:15.000Z]
 
 <div align="center">
   <h3>✨ Ready to Launch? ✨</h3>
-  <p><strong>Windows:</strong> Double-click <code>launch.bat</code></p>
-  <p><strong>All OS:</strong> Run <code>node index.js</code></p>
+  <p>Run: <code>node index.js</code></p>
   <p>Made with ❤️ by nexera$ smokie | v1.0.1 (March 2026)</p>
 </div>
