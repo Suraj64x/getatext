@@ -6,9 +6,23 @@ const chalk = require("chalk");
 const ora = require("ora");
 const gradient = require("gradient-string");
 const readline = require("readline");
-const prompt = require("prompt-sync")();
 const { FingerprintInjector } = require("fingerprint-injector");
 const XLSX = require("xlsx");
+
+// Create readline interface for proper CLI input on Windows
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+// Helper function to get user input with proper prompting
+function promptUser(question) {
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      resolve(answer);
+    });
+  });
+}
 
 puppeteer.use(StealthPlugin());
 
@@ -1075,60 +1089,60 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
   }
 }
 
-function askForHeadlessMode() {
-  const answer = prompt(
+async function askForHeadlessMode() {
+  const answer = await promptUser(
     chalk.bold.blue(
       "\n🖥️  Browser mode? [1=Headless (faster), 2=Visible (default)]: "
     )
-  ).trim();
-  const choice = answer;
+  );
+  const choice = answer.trim();
   HEADLESS_MODE = choice === "1" || choice.toLowerCase() === "headless";
   const modeText = HEADLESS_MODE ? "Headless" : "Visible";
   console.log(chalk.cyan(`✅ Mode set to: ${modeText}\n`));
 }
 
-function askRunMode() {
-  const choice = prompt(
+async function askRunMode() {
+  const choice = await promptUser(
     chalk.bold.cyan(
       "\n🤖 What would you like to do?\n" +
       "  [1] Run Bot - Generate & Create Accounts\n" +
       "  [2] Extract API Keys - Export from existing accounts\n" +
       "\n❓ Choose [1 or 2] (Default: 1): "
     )
-  ).trim();
-  const mode = choice === "2" ? "extract" : "bot";
+  );
+  const mode = choice.trim() === "2" ? "extract" : "bot";
   const modeText = mode === "extract" ? "Extract API Keys" : "Run Bot";
   console.log(chalk.green(`\n✅ Mode selected: ${modeText}\n`));
   return mode;
 }
 
-function askForThreads() {
-  const answer = prompt(
+async function askForThreads() {
+  const answer = await promptUser(
     chalk.bold.green(
       "\n❓ How many threads would you like to run? [Default: 3]: "
     )
-  ).trim();
-  const parsed = parseInt(answer, 10);
+  );
+  const parsed = parseInt(answer.trim(), 10);
   if (!isNaN(parsed) && parsed > 0) THREAD_COUNT = parsed;
 }
 
-function askForEmailDomain() {
-  const answer = prompt(
+async function askForEmailDomain() {
+  const answer = await promptUser(
     chalk.bold.magenta(
       "\n📧 Enter email domain [Default: tonexera.me]: "
     )
-  ).trim();
-  const domain = answer.length === 0 ? "tonexera.me" : answer;
+  );
+  const domain = answer.trim().length === 0 ? "tonexera.me" : answer.trim();
   EMAIL_DOMAIN = domain.startsWith('@') ? domain : `@${domain}`;
 }
 
-function askForAccountCount() {
-  const answer = prompt(
+async function askForAccountCount() {
+  const answer = await promptUser(
     chalk.bold.cyan(
       "\n🔐 How many accounts do you want to auto-generate? [Default: 5]: "
     )
-  ).trim();
-  const parsed = parseInt(answer, 10);
+  );
+  const parsed = parseInt(answer.trim(), 10);
   const count = isNaN(parsed) || parsed <= 0 ? 5 : parsed;
   return count;
 }
@@ -1180,38 +1194,38 @@ function initializeOutputFiles() {
     }
   }
 }
-function askToGenerateNewAccounts() {
-  const answer = prompt(
+async function askToGenerateNewAccounts() {
+  const answer = await promptUser(
     chalk.bold.yellow(
       "\n⚠️  No accounts to process. Generate new accounts? [y/n]: "
     )
-  ).toLowerCase();
+  );
   const shouldGenerate =
-    answer === "y" ||
-    answer === "yes" ||
-    answer === "";
+    answer.toLowerCase() === "y" ||
+    answer.toLowerCase() === "yes" ||
+    answer.trim() === "";
   return shouldGenerate;
 }
 
-function askToExportApiKeys() {
-  const answer = prompt(
+async function askToExportApiKeys() {
+  const answer = await promptUser(
     chalk.bold.magenta(
       "\n🔑 Extract API keys to file? [y/n] (Default: y): "
     )
-  ).toLowerCase();
+  );
   const shouldExport =
-    answer !== "n" && answer !== "no";
+    answer.toLowerCase() !== "n" && answer.toLowerCase() !== "no";
   return shouldExport;
 }
 
-function askToValidateProxies() {
-  const answer = prompt(
+async function askToValidateProxies() {
+  const answer = await promptUser(
     chalk.bold.cyan(
       "\n🔍 Validate proxies before running? [y/n] (Default: y): "
     )
-  ).toLowerCase();
+  );
   const shouldValidate =
-    answer !== "n" && answer !== "no";
+    answer.toLowerCase() !== "n" && answer.toLowerCase() !== "no";
   return shouldValidate;
 }
 
@@ -1235,7 +1249,7 @@ async function initializeAccounts() {
               "\n⚠️  All accounts already processed (status: done or processing)\n"
             )
           );
-          needsGeneration = askToGenerateNewAccounts();
+          needsGeneration = await askToGenerateNewAccounts();
         }
       } else {
         needsGeneration = true;
@@ -1252,8 +1266,8 @@ async function initializeAccounts() {
   // Generate new accounts if needed
   if (needsGeneration) {
     console.log(chalk.bold.cyan("\n🔧 Generating new accounts...\n"));
-    askForEmailDomain();
-    const count = askForAccountCount();
+    await askForEmailDomain();
+    const count = await askForAccountCount();
     const newAccounts = generateAccounts(count);
     writeAccounts(newAccounts);
     console.log(
@@ -1272,7 +1286,7 @@ async function main() {
   loadPersistedBadProxies();
   
   // Ask if user wants to extract API keys or run bot
-  const runChoice = askRunMode();
+  const runChoice = await askRunMode();
   if (runChoice === "extract") {
     console.log(chalk.cyan("\n🔑 Launching API Key Extractor...\n"));
     try {
@@ -1284,8 +1298,8 @@ async function main() {
     return;
   }
   
-  askForThreads();
-  askForHeadlessMode();
+  await askForThreads();
+  await askForHeadlessMode();
 
   const browserReady = await ensureBrowserReady();
   if (!browserReady) {
@@ -1306,7 +1320,7 @@ async function main() {
   console.log(chalk.cyan(`\n🔍 Found ${configuredProxyCount} proxies in proxies.txt\n`));
   
   let proxies;
-  const shouldValidate = askToValidateProxies();
+  const shouldValidate = await askToValidateProxies();
   if (shouldValidate) {
     proxies = await validateProxies();
     console.log(chalk.green(`\n✅ ${proxies.length} valid proxies after validation\n`));
@@ -1374,7 +1388,7 @@ async function main() {
       );
       
       // Ask if user wants to extract API keys
-      const shouldExport = askToExportApiKeys();
+      const shouldExport = await askToExportApiKeys();
       if (shouldExport) {
         try {
           console.log(chalk.cyan("\n🔑 Extracting API keys...\n"));
@@ -1446,12 +1460,14 @@ async function main() {
 
 main().catch((err) => {
   console.error(chalk.red.bold(`\n💀 CRITICAL FATAL ERROR:\n${err.message}\n${err.stack}\n`));
+  rl.close();
   process.exit(1);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error(chalk.red.bold(`\n💀 UNCAUGHT EXCEPTION:\n${err.message}\n${err.stack}\n`));
+  rl.close();
   process.exit(1);
 });
 
@@ -1461,10 +1477,12 @@ process.on('unhandledRejection', (reason, promise) => {
   if (reason instanceof Error && reason.stack) {
     console.error(reason.stack);
   }
+  rl.close();
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log(chalk.yellow(`\n\n⚠️  Received interrupt signal. Cleaning up...\n`));
+  rl.close();
   process.exit(0);
 });
