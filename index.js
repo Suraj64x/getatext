@@ -106,6 +106,24 @@ function releaseLaunchSlot() {
   LAUNCH_QUEUE = Math.max(0, LAUNCH_QUEUE - 1);
 }
 
+// Helper function to safely interact with page
+async function safePageInteraction(page, interaction) {
+  try {
+    if (!page || !page.browser() || !page.browser().isConnected()) {
+      throw new Error("Page closed");
+    }
+    return await Promise.race([
+      interaction(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 35000))
+    ]);
+  } catch (error) {
+    if (error.message.includes("Target closed") || error.message.includes("detached")) {
+      throw new Error("Page closed or detached");
+    }
+    throw error;
+  }
+}
+
 function isChromeMissingError(message) {
   if (!message) return false;
   return (
@@ -769,28 +787,40 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 4000));
 
     spinner.text = `${prefix} ${chalk.yellow("Typing credentials...")} ⌨️`;
     await page.waitForSelector("#email", { visible: true, timeout: 30000 });
-    await page.type("#email", account.email, {
-      delay: Math.floor(Math.random() * 50) + 50,
-    });
+    await new Promise((r) => setTimeout(r, 1000));
+    
+    await safePageInteraction(page, () => 
+      page.type("#email", account.email, {
+        delay: Math.floor(Math.random() * 50) + 50,
+      })
+    );
+    await new Promise((r) => setTimeout(r, 800));
 
-    await page.type("#password", account.password, {
-      delay: Math.floor(Math.random() * 50) + 50,
-    });
+    await safePageInteraction(page, () => 
+      page.type("#password", account.password, {
+        delay: Math.floor(Math.random() * 50) + 50,
+      })
+    );
+    await new Promise((r) => setTimeout(r, 800));
 
-    await page.type("#password_confirmation", account.password, {
-      delay: Math.floor(Math.random() * 50) + 50,
-    });
+    await safePageInteraction(page, () => 
+      page.type("#password_confirmation", account.password, {
+        delay: Math.floor(Math.random() * 50) + 50,
+      })
+    );
+    await new Promise((r) => setTimeout(r, 1000));
 
     spinner.text = `${prefix} ${chalk.cyan("Checking Terms and scrolling...")} ✔️`;
-    await page.click("#terms");
-    await new Promise((r) => setTimeout(r, 3000));
-
-    await page.evaluate(() => window.scrollBy(0, 400));
     await new Promise((r) => setTimeout(r, 1000));
+    await safePageInteraction(page, () => page.click("#terms"));
+    await new Promise((r) => setTimeout(r, 3500));
+
+    await safePageInteraction(page, () => page.evaluate(() => window.scrollBy(0, 400)));
+    await new Promise((r) => setTimeout(r, 1500));
 
     spinner.text = `${prefix} ${chalk.magenta("Clicking Submit/Register...")} 🚀`;
     const submitBtnSelector = 'button[type="submit"]';
@@ -798,11 +828,16 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       visible: true,
       timeout: 30000,
     });
+    await new Promise((r) => setTimeout(r, 1200));
 
     const clickSubmit = async () => {
-      const btns = await page.$$(submitBtnSelector);
-      if (btns.length > 0) {
-        await page.evaluate((el) => el.click(), btns[0]);
+      try {
+        const btns = await page.$$(submitBtnSelector);
+        if (btns.length > 0) {
+          await safePageInteraction(page, () => page.evaluate((el) => el.click(), btns[0]));
+        }
+      } catch (e) {
+        // Ignore if page closed
       }
     };
 
@@ -812,12 +847,18 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
         .catch(() => {}),
       clickSubmit(),
     ]);
+    await new Promise((r) => setTimeout(r, 2000));
 
-    const emailTaken = await page.evaluate(() => {
-      return document.body.innerText.includes(
-        "The email has already been taken.",
-      );
-    });
+    let emailTaken = false;
+    try {
+      emailTaken = await safePageInteraction(page, () => page.evaluate(() => {
+        return document.body.innerText.includes(
+          "The email has already been taken.",
+        );
+      }));
+    } catch (e) {
+      // Continue if check fails
+    }
 
     if (emailTaken) {
       spinner.fail(`${prefix} ${chalk.red.bold("Email already used!")}`);
@@ -827,13 +868,13 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
     }
 
     spinner.text = `${prefix} ${chalk.cyan("Scrolling to bottom for Accept All...")} 📜`;
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 3500));
 
-    await page.evaluate(() => {
+    await safePageInteraction(page, () => page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
       window.scrollBy(0, 2000);
-    });
-    await new Promise((r) => setTimeout(r, 1000));
+    }));
+    await new Promise((r) => setTimeout(r, 2000));
 
     spinner.text = `${prefix} ${chalk.magenta("Clicking Accept All...")} 🚀`;
     const acceptAllXpath = "xpath/.//button[contains(., 'Accept All')]";
@@ -844,36 +885,40 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       });
       const acceptElements = await page.$$(acceptAllXpath);
       if (acceptElements.length > 0) {
-        await page.evaluate((el) => el.click(), acceptElements[0]);
-        await new Promise((r) => setTimeout(r, 3000));
+        await safePageInteraction(page, () => page.evaluate((el) => el.click(), acceptElements[0]));
+        await new Promise((r) => setTimeout(r, 3500));
       }
-    } catch (e) {}
+    } catch (e) {
+      // Accept All button not found, continuing
+    }
 
     spinner.text = `${prefix} ${chalk.cyan("Navigating to Wallet...")} 💼`;
+    await new Promise((r) => setTimeout(r, 1000));
     try {
       // Try to find and click Wallet button
-      await page.evaluate(() => {
+      await safePageInteraction(page, () => page.evaluate(() => {
         const elements = Array.from(document.querySelectorAll('a, button, div[role="button"], span'));
         const walletBtn = elements.find(el => el.innerText && el.innerText.toLowerCase().includes('wallet'));
         if (walletBtn) walletBtn.click();
-      });
-      await new Promise((r) => setTimeout(r, 3000));
+      }));
+      await new Promise((r) => setTimeout(r, 3500));
     } catch (e) {
       spinner.warn(`${prefix} ${chalk.yellow("Could not find Wallet button")}`);
       throw new Error("Wallet button not found");
     }
 
     spinner.text = `${prefix} ${chalk.cyan("Opening Redeem Promocode...")} 🎁`;
+    await new Promise((r) => setTimeout(r, 1000));
     try {
       // Try to find and click Redeem Promocode button
-      await page.evaluate(() => {
+      await safePageInteraction(page, () => page.evaluate(() => {
         const elements = Array.from(document.querySelectorAll('button, a, div[role="button"], span'));
         const redeemBtn = elements.find(el => 
           el.innerText && el.innerText.toLowerCase().includes('redeem') && 
           el.innerText.toLowerCase().includes('promo')
         );
         if (redeemBtn) redeemBtn.click();
-      });
+      }));
       await new Promise((r) => setTimeout(r, 3000));
     } catch (e) {
       spinner.warn(`${prefix} ${chalk.yellow("Could not find Redeem Promocode button")}`)
@@ -887,26 +932,27 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       timeout: 15000,
     });
 
-    await page.click(promoTextareaSelector);
-    await new Promise((r) => setTimeout(r, 500));
+    await safePageInteraction(page, () => page.click(promoTextareaSelector));
+    await new Promise((r) => setTimeout(r, 800));
 
-    await page.type(promoTextareaSelector, "DAISYUSERSWELCOME", { delay: 50 });
+    await safePageInteraction(page, () => page.type(promoTextareaSelector, "DAISYUSERSWELCOME", { delay: 50 }));
+    await new Promise((r) => setTimeout(r, 1000));
 
     try {
       // Try to find and click REDEEM button
-      await page.evaluate(() => {
+      await safePageInteraction(page, () => page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll('button'));
         const redeemBtn = buttons.find(b => b.innerText && b.innerText.toUpperCase().includes('REDEEM'));
         if (redeemBtn) redeemBtn.click();
-      });
-      await new Promise((r) => setTimeout(r, 3000));
+      }));
+      await new Promise((r) => setTimeout(r, 3500));
     } catch (e) {
       // Fallback: try submit button
       try {
         const fallbackBtn = await page.$$('button.btn-full-width[type="submit"], button[type="submit"]');
         if (fallbackBtn.length > 0) {
-          await page.evaluate((el) => el.click(), fallbackBtn[0]);
-          await new Promise((r) => setTimeout(r, 3000));
+          await safePageInteraction(page, () => page.evaluate((el) => el.click(), fallbackBtn[0]));
+          await new Promise((r) => setTimeout(r, 3500));
         }
       } catch (fallbackErr) {}
     }
@@ -914,19 +960,23 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
     spinner.text = `${prefix} ${chalk.cyan("Waiting for $0.50 balance...")} 💰`;
     let balanceFound = false;
     for (let i = 0; i < 30; i++) {
-      await new Promise((r) => setTimeout(r, 2000));
-      let balanceText = await page.evaluate(() => {
-        const el =
-          document.querySelector(".balance-amount") ||
-          document.querySelector('span:contains("$")') ||
-          Array.from(document.querySelectorAll("span, div, p")).find((e) =>
-            e.innerText.includes("$0.50"),
-          );
-        return el ? el.innerText : "";
-      });
-      if (balanceText && balanceText.includes("$0.50")) {
-        balanceFound = true;
-        break;
+      await new Promise((r) => setTimeout(r, 2500));
+      try {
+        let balanceText = await safePageInteraction(page, () => page.evaluate(() => {
+          const el =
+            document.querySelector(".balance-amount") ||
+            document.querySelector('span:contains("$")') ||
+            Array.from(document.querySelectorAll("span, div, p")).find((e) =>
+              e.innerText.includes("$0.50"),
+            );
+          return el ? el.innerText : "";
+        }));
+        if (balanceText && balanceText.includes("$0.50")) {
+          balanceFound = true;
+          break;
+        }
+      } catch (e) {
+        // Continue checking even if there are errors
       }
     }
 
@@ -936,7 +986,7 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
         waitUntil: "domcontentloaded",
         timeout: 30000,
       });
-      await new Promise((r) => setTimeout(r, 3000));
+      await new Promise((r) => setTimeout(r, 4000));
 
       let apiKey = "";
       try {
@@ -944,10 +994,10 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
           visible: true,
           timeout: 15000,
         });
-        apiKey = await page.evaluate(() => {
+        apiKey = await safePageInteraction(page, () => page.evaluate(() => {
           const el = document.getElementById("apiKeyDisplay");
           return el ? el.innerText.trim() : "";
-        });
+        }));
       } catch (e) {
         // Fallback if selector is not found
       }
@@ -955,10 +1005,10 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
       spinner.text = `${prefix} ${chalk.cyan("Disabling IP confirmation toggle...")} 🔐`;
       try {
         // Scroll to find the toggle button
-        await page.evaluate(() => {
+        await safePageInteraction(page, () => page.evaluate(() => {
           window.scrollBy(0, 500);
-        });
-        await new Promise((r) => setTimeout(r, 1000));
+        }));
+        await new Promise((r) => setTimeout(r, 1500));
 
         // Look for the toggle button for "New log in IP confirmation"
         const toggleButtons = await page.$$('input[type="checkbox"], input[type="radio"], .toggle-switch, [role="switch"]');
@@ -966,28 +1016,28 @@ async function runWorker(workerId, account, proxyUrl, fingerprintPath) {
         // Find the one that matches the IP confirmation setting
         let toggleFound = false;
         for (const btn of toggleButtons) {
-          const parentText = await page.evaluate((el) => {
+          const parentText = await safePageInteraction(page, () => page.evaluate((el) => {
             let parent = el.closest('[class*="setting"], [class*="option"], [class*="field"], .form-group, [role="group"]');
             if (!parent) parent = el.parentElement?.parentElement;
             return parent ? parent.innerText.toLowerCase() : '';
-          }, btn);
+          }, btn));
           
           if (parentText.includes('ip') || parentText.includes('confirmation') || parentText.includes('login')) {
-            const isChecked = await page.evaluate((el) => {
+            const isChecked = await safePageInteraction(page, () => page.evaluate((el) => {
               return el.checked || el.getAttribute('aria-checked') === 'true';
-            }, btn);
+            }, btn));
             
             if (isChecked) {
-              await page.evaluate((el) => {
+              await safePageInteraction(page, () => page.evaluate((el) => {
                 if (el.type === 'checkbox' || el.type === 'radio') {
                   el.click();
                 } else {
                   el.click();
                 }
-              }, btn);
+              }, btn));
               toggleFound = true;
               spinner.text = `${prefix} ${chalk.green("IP confirmation toggle disabled")} ✅`;
-              await new Promise((r) => setTimeout(r, 2000));
+              await new Promise((r) => setTimeout(r, 2500));
               break;
             }
           }
